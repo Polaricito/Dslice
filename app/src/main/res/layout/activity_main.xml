@@ -1,91 +1,169 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/rootLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:background="@color/app_background"
-    android:fitsSystemWindows="true">
+    android:fitsSystemWindows="true"
+    android:orientation="vertical">
 
+    <!-- Header -->
     <LinearLayout
-        android:id="@+id/suManagerRow"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:layout_marginBottom="2dp"
-        android:background="?attr/selectableItemBackground"
-        android:clickable="true"
-        android:focusable="true"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="32dp"
-        android:paddingEnd="32dp"
-        android:paddingTop="6dp"
-        android:paddingBottom="6dp">
+        android:paddingStart="24dp"
+        android:paddingTop="18dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="10dp">
 
-        <LinearLayout
+        <ImageView
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:contentDescription="@null"
+            android:src="@mipmap/ic_launcher" />
+
+        <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
             android:layout_weight="1"
-            android:orientation="vertical"
-            android:paddingEnd="12dp">
+            android:letterSpacing="0.01"
+            android:text="@string/app_name"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="27sp"
+            android:textStyle="bold" />
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="SU Manager"
-                android:textColor="@color/app_foreground"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/suManagerSubtitle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:ellipsize="end"
-                android:singleLine="true"
-                android:text="Not selected - required"
-                android:textColor="@color/app_secondary_foreground"
-                android:textSize="14sp" />
-        </LinearLayout>
-
-        <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/switchSuManager"
+        <TextView
+            android:id="@+id/versionView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:contentDescription="SU Manager"
-            app:thumbIcon="@null" />
+            android:alpha="0.6"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="13sp" />
     </LinearLayout>
 
-    <LinearLayout
+    <!-- Root status / launch pill -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/launchCard"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp">
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginEnd="16dp"
+        android:clickable="true"
+        android:focusable="true"
+        app:cardBackgroundColor="?attr/colorSurfaceContainerHighest"
+        app:cardCornerRadius="30dp"
+        app:cardElevation="0dp"
+        app:strokeWidth="0dp">
 
-        <com.google.android.material.card.MaterialCardView
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:layout_marginBottom="2dp"
-            app:cardBackgroundColor="@color/app_background"
-            app:cardCornerRadius="28dp"
-            app:cardElevation="0dp"
-            app:strokeWidth="0dp">
+            android:baselineAligned="false"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="18dp"
+            android:paddingTop="18dp"
+            android:paddingEnd="20dp"
+            android:paddingBottom="18dp">
+
+            <FrameLayout
+                android:id="@+id/launchIconContainer"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:background="@drawable/bg_circle">
+
+                <ImageView
+                    android:id="@+id/launchIcon"
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_power" />
+
+                <com.google.android.material.progressindicator.CircularProgressIndicator
+                    android:id="@+id/launchProgress"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:indeterminate="true"
+                    android:visibility="gone"
+                    app:indicatorSize="28dp"
+                    app:trackThickness="3dp" />
+            </FrameLayout>
 
             <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/launchTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Launch Root"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/launchSubtitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:text="Tap to run the exploit"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="14sp" />
+            </LinearLayout>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Settings group -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginEnd="16dp"
+        app:cardBackgroundColor="?attr/colorSurfaceContainerHighest"
+        app:cardCornerRadius="28dp"
+        app:cardElevation="0dp"
+        app:strokeWidth="0dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- SU Manager dropdown row -->
+            <LinearLayout
+                android:id="@+id/suManagerRow"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
                 android:gravity="center_vertical"
+                android:minHeight="68dp"
                 android:orientation="horizontal"
-                android:paddingStart="16dp"
+                android:paddingStart="20dp"
+                android:paddingTop="12dp"
                 android:paddingEnd="16dp"
-                android:paddingTop="6dp"
-                android:paddingBottom="6dp">
+                android:paddingBottom="12dp">
+
+                <androidx.appcompat.widget.AppCompatImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginEnd="14dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_shield_check"
+                    app:tint="?attr/colorOnSurfaceVariant" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -97,59 +175,59 @@
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Launch Root"
-                        android:textColor="@color/app_foreground"
-                        android:textSize="18sp"
+                        android:text="SU Manager"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="16sp"
                         android:textStyle="bold" />
 
                     <TextView
+                        android:id="@+id/suManagerSubtitle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="Tap to launch manually"
-                        android:textColor="@color/app_secondary_foreground"
-                        android:textSize="14sp"
+                        android:layout_marginTop="3dp"
+                        android:ellipsize="end"
                         android:singleLine="true"
-                        android:ellipsize="end" />
+                        android:text="Not selected - required"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="13sp" />
                 </LinearLayout>
 
-                <com.google.android.material.materialswitch.MaterialSwitch
-                    android:id="@+id/switchLaunchRoot"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:contentDescription="Launch Root"
-                    app:thumbIcon="@null" />
+                <androidx.appcompat.widget.AppCompatImageView
+                    android:id="@+id/suManagerChevron"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_chevron_down"
+                    app:tint="?attr/colorOnSurfaceVariant" />
             </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
 
-    </LinearLayout>
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginStart="20dp"
+                android:layout_marginEnd="20dp"
+                android:alpha="0.5"
+                android:background="?attr/colorOutlineVariant" />
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp">
-
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:layout_marginBottom="2dp"
-            app:cardBackgroundColor="@color/app_background"
-            app:cardCornerRadius="28dp"
-            app:cardElevation="0dp"
-            app:strokeWidth="0dp">
-
+            <!-- Start at Boot -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
+                android:minHeight="68dp"
                 android:orientation="horizontal"
-                android:paddingStart="16dp"
+                android:paddingStart="20dp"
+                android:paddingTop="10dp"
                 android:paddingEnd="16dp"
-                android:paddingTop="6dp"
-                android:paddingBottom="6dp">
+                android:paddingBottom="10dp">
+
+                <androidx.appcompat.widget.AppCompatImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginEnd="14dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_schedule"
+                    app:tint="?attr/colorOnSurfaceVariant" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -162,19 +240,17 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Start at Boot"
-                        android:textColor="@color/app_foreground"
-                        android:textSize="18sp"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="16sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
+                        android:layout_marginTop="3dp"
                         android:text="Auto-start on boot"
-                        android:textColor="@color/app_secondary_foreground"
-                        android:textSize="14sp"
-                        android:singleLine="true"
-                        android:ellipsize="end" />
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="13sp" />
                 </LinearLayout>
 
                 <com.google.android.material.materialswitch.MaterialSwitch
@@ -184,27 +260,34 @@
                     android:contentDescription="Start at Boot"
                     app:thumbIcon="@null" />
             </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
 
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:layout_marginBottom="2dp"
-            app:cardBackgroundColor="@color/app_background"
-            app:cardCornerRadius="28dp"
-            app:cardElevation="0dp"
-            app:strokeWidth="0dp">
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginStart="20dp"
+                android:layout_marginEnd="20dp"
+                android:alpha="0.5"
+                android:background="?attr/colorOutlineVariant" />
 
+            <!-- Auto Soft Reboot -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
+                android:minHeight="68dp"
                 android:orientation="horizontal"
-                android:paddingStart="16dp"
+                android:paddingStart="20dp"
+                android:paddingTop="10dp"
                 android:paddingEnd="16dp"
-                android:paddingTop="6dp"
-                android:paddingBottom="6dp">
+                android:paddingBottom="10dp">
+
+                <androidx.appcompat.widget.AppCompatImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginEnd="14dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_restart"
+                    app:tint="?attr/colorOnSurfaceVariant" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -217,19 +300,17 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Auto Soft Reboot"
-                        android:textColor="@color/app_foreground"
-                        android:textSize="18sp"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="16sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
+                        android:layout_marginTop="3dp"
                         android:text="Manual &amp; boot starts"
-                        android:textColor="@color/app_secondary_foreground"
-                        android:textSize="14sp"
-                        android:singleLine="true"
-                        android:ellipsize="end" />
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="13sp" />
                 </LinearLayout>
 
                 <com.google.android.material.materialswitch.MaterialSwitch
@@ -239,27 +320,34 @@
                     android:contentDescription="Auto Soft Reboot"
                     app:thumbIcon="@null" />
             </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
 
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:layout_marginBottom="2dp"
-            app:cardBackgroundColor="@color/app_background"
-            app:cardCornerRadius="28dp"
-            app:cardElevation="0dp"
-            app:strokeWidth="0dp">
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginStart="20dp"
+                android:layout_marginEnd="20dp"
+                android:alpha="0.5"
+                android:background="?attr/colorOutlineVariant" />
 
+            <!-- Disable KSU Modules -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
+                android:minHeight="68dp"
                 android:orientation="horizontal"
-                android:paddingStart="16dp"
+                android:paddingStart="20dp"
+                android:paddingTop="10dp"
                 android:paddingEnd="16dp"
-                android:paddingTop="6dp"
-                android:paddingBottom="6dp">
+                android:paddingBottom="10dp">
+
+                <androidx.appcompat.widget.AppCompatImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginEnd="14dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_modules"
+                    app:tint="?attr/colorOnSurfaceVariant" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -272,19 +360,17 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Disable KSU Modules"
-                        android:textColor="@color/app_foreground"
-                        android:textSize="18sp"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="16sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
+                        android:layout_marginTop="3dp"
                         android:text="Disables all modules"
-                        android:textColor="@color/app_secondary_foreground"
-                        android:textSize="14sp"
-                        android:singleLine="true"
-                        android:ellipsize="end" />
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="13sp" />
                 </LinearLayout>
 
                 <com.google.android.material.materialswitch.MaterialSwitch
@@ -294,27 +380,79 @@
                     android:contentDescription="Disable KSU Modules"
                     app:thumbIcon="@null" />
             </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-    </LinearLayout>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
-    <ScrollView
-        android:id="@+id/outputScroll"
+    <!-- Log pill -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/logCard"
         android:layout_width="match_parent"
         android:layout_height="0dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
         android:layout_weight="1"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:paddingTop="8dp">
+        app:cardBackgroundColor="?attr/colorSurfaceContainerHighest"
+        app:cardCornerRadius="28dp"
+        app:cardElevation="0dp"
+        app:strokeWidth="0dp">
 
-        <TextView
-            android:id="@+id/outputView"
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fontFamily="monospace"
-            android:textIsSelectable="true"
-            android:textSize="11sp"
-            android:textColor="?android:attr/textColorPrimary" />
+            android:layout_height="match_parent"
+            android:orientation="vertical">
 
-    </ScrollView>
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:letterSpacing="0.02"
+                android:paddingStart="20dp"
+                android:paddingTop="14dp"
+                android:paddingEnd="20dp"
+                android:paddingBottom="8dp"
+                android:text="Log"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1">
+
+                <ScrollView
+                    android:id="@+id/outputScroll"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:paddingStart="20dp"
+                    android:paddingEnd="20dp"
+                    android:paddingBottom="16dp"
+                    android:scrollbars="vertical">
+
+                    <TextView
+                        android:id="@+id/outputView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="monospace"
+                        android:lineSpacingExtra="2dp"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textIsSelectable="true"
+                        android:textSize="11sp" />
+                </ScrollView>
+
+                <TextView
+                    android:id="@+id/logEmpty"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:gravity="center"
+                    android:padding="24dp"
+                    android:text="No output yet.&#10;Run the exploit to see its log here."
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="13sp" />
+            </FrameLayout>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
 </LinearLayout>

@@ -1,25 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
     android:gravity="center_vertical"
+    android:minHeight="64dp"
     android:orientation="horizontal"
-    android:padding="8dp">
+    android:paddingStart="12dp"
+    android:paddingTop="8dp"
+    android:paddingEnd="12dp"
+    android:paddingBottom="8dp">
 
     <ImageView
         android:id="@+id/iconApp"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
         android:layout_marginEnd="12dp"
-        android:contentDescription="App icon" />
+        android:contentDescription="@null"
+        android:scaleType="fitCenter" />
 
-    <TextView
-        android:id="@+id/labelApp"
-        style="?android:attr/spinnerItemStyle"
+    <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:maxLines="1"
-        android:ellipsize="end" />
+        android:orientation="vertical">
 
+        <TextView
+            android:id="@+id/labelApp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/packageApp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <androidx.appcompat.widget.AppCompatImageView
+        android:id="@+id/checkSelected"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_marginStart="8dp"
+        android:contentDescription="@null"
+        android:src="@drawable/ic_check"
+        android:visibility="gone"
+        app:tint="?attr/colorPrimary" />
 </LinearLayout>

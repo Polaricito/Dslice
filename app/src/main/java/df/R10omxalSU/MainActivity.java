@@ -1,31 +1,40 @@
 package df.R10omxalSU;
 
+import df.D10slice.BuildConfig;
 import df.D10slice.R;
 
 import android.app.Activity;
+import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
-import android.util.TypedValue;
-import android.widget.CompoundButton;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.android.material.color.DynamicColors;
 import com.google.android.material.card.MaterialCardView;
+import com.google.android.material.color.DynamicColors;
+import com.google.android.material.color.MaterialColors;
 import com.google.android.material.materialswitch.MaterialSwitch;
+import com.google.android.material.progressindicator.CircularProgressIndicator;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -37,16 +46,20 @@ public class MainActivity extends Activity implements IReporter {
 
     private static final String TAG = "dfroot";
 
-    private View rootLayout;
+    private MaterialCardView launchCard;
+    private FrameLayout launchIconContainer;
+    private ImageView launchIcon;
+    private CircularProgressIndicator launchProgress;
+    private TextView launchTitle;
+    private TextView launchSubtitle;
     private LinearLayout suManagerRow;
     private TextView suManagerSubtitle;
-    private MaterialSwitch switchSuManager;
     private ScrollView outputScroll;
     private TextView outputView;
+    private TextView logEmpty;
     private MaterialSwitch switchBootStart;
     private MaterialSwitch switchSoftReboot;
     private MaterialSwitch switchDisableModules;
-    private MaterialSwitch switchLaunchRoot;
     private Context mDeCtx;
     private final Handler mMain = new Handler(Looper.getMainLooper());
     private final Executor mExec = Executors.newSingleThreadExecutor();
@@ -54,14 +67,15 @@ public class MainActivity extends Activity implements IReporter {
     private String mSelectedSuManagerPackage;
     private SharedPreferences suManagerPrefs;
     private boolean isLaunching;
-    private CompoundButton.OnCheckedChangeListener suManagerSwitchListener;
-    private CompoundButton.OnCheckedChangeListener launchRootSwitchListener;
+    private boolean isLoadingManagers;
     private PopupWindow suManagerPopup;
 
     @Override
     public void report(String msg) {
         Log.i(TAG, msg.trim());
         mMain.post(() -> {
+            if (isFinishing() || isDestroyed()) return;
+            logEmpty.setVisibility(View.GONE);
             outputView.append(msg);
             outputScroll.post(() -> outputScroll.fullScroll(View.FOCUS_DOWN));
         });
@@ -74,159 +88,196 @@ public class MainActivity extends Activity implements IReporter {
         mDeCtx = createDeviceProtectedStorageContext();
         setContentView(R.layout.activity_main);
 
-        rootLayout = findViewById(R.id.rootLayout);
+        launchCard = findViewById(R.id.launchCard);
+        launchIconContainer = findViewById(R.id.launchIconContainer);
+        launchIcon = findViewById(R.id.launchIcon);
+        launchProgress = findViewById(R.id.launchProgress);
+        launchTitle = findViewById(R.id.launchTitle);
+        launchSubtitle = findViewById(R.id.launchSubtitle);
         suManagerRow = findViewById(R.id.suManagerRow);
         suManagerSubtitle = findViewById(R.id.suManagerSubtitle);
-        switchSuManager = findViewById(R.id.switchSuManager);
         outputScroll = findViewById(R.id.outputScroll);
         outputView = findViewById(R.id.outputView);
+        logEmpty = findViewById(R.id.logEmpty);
         switchBootStart = findViewById(R.id.switchBootStart);
         switchSoftReboot = findViewById(R.id.switchSoftReboot);
         switchDisableModules = findViewById(R.id.switchDisableModules);
-        switchLaunchRoot = findViewById(R.id.switchLaunchRoot);
+        ((TextView) findViewById(R.id.versionView)).setText(BuildConfig.VERSION_NAME);
+
         suManagerPrefs = mDeCtx.getSharedPreferences(ExploitRunner.PREFS_NAME, Context.MODE_PRIVATE);
-        switchLaunchRoot.setChecked(isRootActive());
-
-        PackageManager pm = getPackageManager();
-        for (ApplicationInfo ai : pm.getInstalledApplications(0)) {
-            if ((ai.flags & ApplicationInfo.FLAG_SYSTEM) != 0) continue;
-            if (!ExploitRunner.hasKsud(ai)) continue;
-            suManagers.add(new SuManagerEntry(ai.packageName, pm.getApplicationLabel(ai)));
-        }
-        suManagers.sort((a, b) -> a.label.toString().compareToIgnoreCase(b.label.toString()));
-        suManagerSwitchListener = (button, checked) -> {
-            if (isSuManagerLocked()) {
-                setSuManagerSwitchChecked(mSelectedSuManagerPackage != null);
-                updateRunButton();
-                return;
-            }
-            if (checked) {
-                activateOrChooseSuManager(suManagers, suManagerPrefs);
-            } else {
-                clearSuManagerSelection(suManagerPrefs);
-            }
-        };
-        switchSuManager.setOnCheckedChangeListener(suManagerSwitchListener);
+        refreshSuManagers();
         refreshSuManagerSelection();
-
         configureSettings(suManagerPrefs);
+
         suManagerRow.setOnClickListener(v -> {
             if (isSuManagerLocked()) {
                 updateRunButton();
                 return;
             }
-            activateOrChooseSuManager(suManagers, suManagerPrefs);
+            openSuManagerPicker();
         });
+        launchCard.setOnClickListener(v -> onLaunchCardClicked());
 
         updateRunButton();
-
-        launchRootSwitchListener = (button, checked) -> {
-            if (checked) {
-                if (isRootActive()) {
-                    setLaunchRootSwitchChecked(true);
-                } else if (isLaunching || mSelectedSuManagerPackage == null) {
-                    setLaunchRootSwitchChecked(false);
-                } else {
-                    launchRoot();
-                }
-            } else if (isRootActive() || isLaunching) {
-                setLaunchRootSwitchChecked(isRootActive());
-            }
-        };
-        switchLaunchRoot.setOnCheckedChangeListener(launchRootSwitchListener);
     }
 
-    private void activateOrChooseSuManager(List<SuManagerEntry> entries, SharedPreferences prefs) {
-        if (isSuManagerLocked()) {
-            updateRunButton();
+    private void onLaunchCardClicked() {
+        if (isRootActive()) {
+            openSelectedSuManager();
             return;
         }
-        if (entries.isEmpty()) {
-            Toast.makeText(this, "No compatible SU managers found", Toast.LENGTH_LONG).show();
-            if (switchSuManager.isChecked()) setSuManagerSwitchChecked(false);
-        } else if (entries.size() == 1) {
-            selectSuManager(entries.get(0), prefs);
-        } else {
-            if (mSelectedSuManagerPackage == null) setSuManagerSwitchChecked(false);
-            showSuManagerPicker(entries, prefs);
+        if (isLaunching) return;
+        if (mSelectedSuManagerPackage == null) {
+            Toast.makeText(this, "Select an SU Manager first", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        launchRoot();
+    }
+
+    private void openSelectedSuManager() {
+        if (mSelectedSuManagerPackage == null) {
+            Toast.makeText(this, "No SU Manager selected", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Intent intent = getPackageManager().getLaunchIntentForPackage(mSelectedSuManagerPackage);
+        if (intent == null) {
+            Toast.makeText(this, "Could not open the SU Manager", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        try {
+            startActivity(intent);
+        } catch (ActivityNotFoundException e) {
+            Log.e(TAG, "failed to open SU manager", e);
+            Toast.makeText(this, "Could not open the SU Manager", Toast.LENGTH_SHORT).show();
         }
     }
 
-    private void showSuManagerPicker(List<SuManagerEntry> entries, SharedPreferences prefs) {
-        if (isSuManagerLocked()) return;
+    private void refreshSuManagers() {
+        suManagers.clear();
+        suManagers.addAll(scanSuManagers());
+    }
 
-        int rootBackgroundColor = getRootBackgroundColor();
-        int maxHeight = dp(320);
-        ScrollView scroll = new ScrollView(this);
+    private List<SuManagerEntry> scanSuManagers() {
+        PackageManager pm = getPackageManager();
+        List<SuManagerEntry> entries = new ArrayList<>();
+        for (ApplicationInfo ai : pm.getInstalledApplications(0)) {
+            if ((ai.flags & ApplicationInfo.FLAG_SYSTEM) != 0) continue;
+            if (!ExploitRunner.hasKsud(ai)) continue;
+            Drawable icon = pm.getApplicationIcon(ai);
+            entries.add(new SuManagerEntry(ai.packageName, pm.getApplicationLabel(ai), icon));
+        }
+        entries.sort((a, b) -> a.label.toString().compareToIgnoreCase(b.label.toString()));
+        return entries;
+    }
+
+    private void openSuManagerPicker() {
+        if (isSuManagerLocked() || isLoadingManagers) return;
+        isLoadingManagers = true;
+        mExec.execute(() -> {
+            List<SuManagerEntry> detected;
+            try {
+                detected = scanSuManagers();
+            } catch (Exception e) {
+                Log.e(TAG, "failed to scan SU managers", e);
+                detected = new ArrayList<>();
+            }
+            final List<SuManagerEntry> result = detected;
+            mMain.post(() -> {
+                isLoadingManagers = false;
+                if (isFinishing() || isDestroyed()) return;
+                suManagers.clear();
+                suManagers.addAll(result);
+                refreshSuManagerSelection();
+                updateRunButton();
+                if (isSuManagerLocked()) {
+                    return;
+                }
+                if (suManagers.isEmpty()) {
+                    Toast.makeText(this, "No compatible SU managers found", Toast.LENGTH_LONG).show();
+                    return;
+                }
+                showSuManagerPicker();
+            });
+        });
+    }
+
+    private void showSuManagerPicker() {
+        if (isSuManagerLocked() || suManagers.isEmpty()) return;
+        if (suManagerPopup != null) {
+            suManagerPopup.dismiss();
+            suManagerPopup = null;
+        }
+
         LinearLayout options = new LinearLayout(this);
         options.setOrientation(LinearLayout.VERTICAL);
+        options.setPadding(dp(8), dp(8), dp(8), dp(8));
 
-        MaterialCardView surface = new MaterialCardView(this);
-        surface.setCardBackgroundColor(rootBackgroundColor);
-        surface.setRadius(dp(16));
-        surface.setCardElevation(0);
-        surface.setStrokeWidth(0);
-        surface.addView(scroll, new ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        ScrollView scroll = new ScrollView(this);
+        scroll.setClipToPadding(false);
         scroll.addView(options);
 
-        int popupHeight = Math.min(maxHeight, entries.size() * dp(64));
+        MaterialCardView surface = new MaterialCardView(this);
+        surface.setCardBackgroundColor(color(com.google.android.material.R.attr.colorSurfaceContainerHigh));
+        surface.setRadius(dp(24));
+        surface.setCardElevation(0);
+        surface.setStrokeColor(color(com.google.android.material.R.attr.colorOutlineVariant));
+        surface.setStrokeWidth(dp(1));
+        surface.addView(scroll, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        LayoutInflater inflater = LayoutInflater.from(this);
+        for (SuManagerEntry entry : suManagers) {
+            View item = inflater.inflate(R.layout.item_su_manager, options, false);
+            ImageView icon = item.findViewById(R.id.iconApp);
+            TextView label = item.findViewById(R.id.labelApp);
+            TextView packageName = item.findViewById(R.id.packageApp);
+            ImageView selected = item.findViewById(R.id.checkSelected);
+
+            if (entry.icon != null) {
+                icon.setImageDrawable(entry.icon);
+            } else {
+                icon.setVisibility(View.GONE);
+            }
+            label.setText(entry.label);
+            packageName.setText(entry.packageName);
+            selected.setVisibility(entry.packageName.equals(mSelectedSuManagerPackage)
+                    ? View.VISIBLE : View.GONE);
+
+            item.setOnClickListener(v -> {
+                popupDismiss();
+                if (isSuManagerLocked()) {
+                    updateRunButton();
+                    return;
+                }
+                selectSuManager(entry, suManagerPrefs);
+            });
+            options.addView(item, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        }
+
+        int popupHeight = Math.min(dp(360), suManagers.size() * dp(64) + dp(16));
         PopupWindow popup = new PopupWindow(surface, suManagerRow.getWidth(), popupHeight, true);
-        popup.setBackgroundDrawable(new ColorDrawable(rootBackgroundColor));
+        popup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         popup.setOutsideTouchable(true);
-        popup.setElevation(dp(4));
+        popup.setElevation(dp(8));
         popup.setClippingEnabled(true);
         suManagerPopup = popup;
         popup.setOnDismissListener(() -> {
             if (suManagerPopup == popup) suManagerPopup = null;
         });
 
-        for (SuManagerEntry entry : entries) {
-            LinearLayout item = new LinearLayout(this);
-            item.setOrientation(LinearLayout.VERTICAL);
-            item.setGravity(android.view.Gravity.CENTER_VERTICAL);
-            item.setPadding(dp(16), dp(10), dp(16), dp(10));
-            item.setMinimumHeight(dp(64));
-            item.setClickable(true);
-            item.setFocusable(true);
-            TypedValue selectableBackground = new TypedValue();
-            if (getTheme().resolveAttribute(android.R.attr.selectableItemBackground,
-                    selectableBackground, true)) {
-                item.setBackgroundResource(selectableBackground.resourceId);
-            }
-
-            TextView label = new TextView(this);
-            label.setText(entry.label);
-            label.setTextColor(getColor(R.color.app_foreground));
-            label.setTextSize(16);
-            label.setTypeface(label.getTypeface(), android.graphics.Typeface.BOLD);
-
-            TextView packageName = new TextView(this);
-            packageName.setText(entry.packageName);
-            packageName.setTextColor(getColor(R.color.app_secondary_foreground));
-            packageName.setTextSize(12);
-
-            item.addView(label, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            item.addView(packageName, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            item.setOnClickListener(v -> {
-                popup.dismiss();
-                if (isSuManagerLocked()) {
-                    updateRunButton();
-                    return;
-                }
-                selectSuManager(entry, prefs);
-            });
-            options.addView(item, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        }
-
         suManagerRow.post(() -> {
-            if (!isFinishing() && suManagerRow.isShown() && !isSuManagerLocked()) {
-                popup.showAsDropDown(suManagerRow);
+            if (!isFinishing() && !isDestroyed() && suManagerRow.isShown() && !isSuManagerLocked()) {
+                popup.showAsDropDown(suManagerRow, 0, dp(6));
             }
         });
+    }
+
+    private void popupDismiss() {
+        if (suManagerPopup != null) {
+            suManagerPopup.dismiss();
+            suManagerPopup = null;
+        }
     }
 
     private void selectSuManager(SuManagerEntry entry, SharedPreferences prefs) {
@@ -234,7 +285,6 @@ public class MainActivity extends Activity implements IReporter {
         if (!prefs.edit().putString(ExploitRunner.PREF_SU_MANAGER, entry.packageName).commit()) {
             Log.e(TAG, "failed to save selected SU manager");
             Toast.makeText(this, "Could not save SU manager selection", Toast.LENGTH_LONG).show();
-            if (mSelectedSuManagerPackage == null) setSuManagerSwitchChecked(false);
             return;
         }
         mSelectedSuManagerPackage = entry.packageName;
@@ -242,27 +292,9 @@ public class MainActivity extends Activity implements IReporter {
         updateRunButton();
     }
 
-    private void clearSuManagerSelection(SharedPreferences prefs) {
-        if (isSuManagerLocked()) {
-            updateRunButton();
-            return;
-        }
-        if (!prefs.edit().remove(ExploitRunner.PREF_SU_MANAGER).commit()) {
-            Log.e(TAG, "failed to clear selected SU manager");
-            Toast.makeText(this, "Could not clear SU manager selection", Toast.LENGTH_LONG).show();
-            setSuManagerSwitchChecked(mSelectedSuManagerPackage != null);
-            return;
-        }
-        mSelectedSuManagerPackage = null;
-        suManagerSubtitle.setText("Not selected - required");
-        setSuManagerSwitchChecked(false);
-        updateRunButton();
-    }
-
     private void setSuManagerUi(SuManagerEntry entry) {
         mSelectedSuManagerPackage = entry.packageName;
         suManagerSubtitle.setText(entry.label + " (" + entry.packageName + ")");
-        setSuManagerSwitchChecked(true);
     }
 
     private void refreshSuManagerSelection() {
@@ -279,38 +311,20 @@ public class MainActivity extends Activity implements IReporter {
         }
         mSelectedSuManagerPackage = null;
         suManagerSubtitle.setText("Not selected - required");
-        setSuManagerSwitchChecked(false);
-    }
-
-    private void setSuManagerSwitchChecked(boolean checked) {
-        switchSuManager.setOnCheckedChangeListener(null);
-        switchSuManager.setChecked(checked);
-        switchSuManager.setOnCheckedChangeListener(suManagerSwitchListener);
     }
 
     private int dp(int value) {
         return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
     }
 
-    private int getRootBackgroundColor() {
-        if (rootLayout.getBackground() instanceof ColorDrawable) {
-            return ((ColorDrawable) rootLayout.getBackground()).getColor();
-        }
-        TypedValue value = new TypedValue();
-        if (getTheme().resolveAttribute(com.google.android.material.R.attr.colorSurface, value, true)) {
-            if (value.type >= TypedValue.TYPE_FIRST_COLOR_INT && value.type <= TypedValue.TYPE_LAST_COLOR_INT) {
-                return value.data;
-            }
-            if (value.resourceId != 0) return getColor(value.resourceId);
-        }
-        return getColor(R.color.app_background);
+    private int color(int attr) {
+        return MaterialColors.getColor(this, attr, Color.GRAY);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         refreshSuManagerSelection();
-        setLaunchRootSwitchChecked(isRootActive());
         updateRunButton();
     }
 
@@ -334,12 +348,70 @@ public class MainActivity extends Activity implements IReporter {
     }
 
     private void updateRunButton() {
-        boolean rootAlreadyLaunched = isRootActive();
-        boolean suManagerLocked = isLaunching || rootAlreadyLaunched;
+        boolean suManagerLocked = isSuManagerLocked();
         suManagerRow.setClickable(!suManagerLocked);
         suManagerRow.setFocusable(!suManagerLocked);
+        suManagerRow.setAlpha(suManagerLocked ? 0.55f : 1f);
         if (suManagerLocked && suManagerPopup != null) suManagerPopup.dismiss();
-        switchLaunchRoot.setEnabled(true);
+        updateLaunchCard();
+    }
+
+    private void updateLaunchCard() {
+        boolean active = isRootActive();
+        int cardColor;
+        int titleColor;
+        int subtitleColor;
+        int iconBackgroundColor;
+        int iconColor;
+
+        if (isLaunching) {
+            cardColor = color(com.google.android.material.R.attr.colorSecondaryContainer);
+            titleColor = color(com.google.android.material.R.attr.colorOnSecondaryContainer);
+            subtitleColor = titleColor;
+            iconBackgroundColor = color(com.google.android.material.R.attr.colorSecondary);
+            iconColor = color(com.google.android.material.R.attr.colorOnSecondary);
+            launchTitle.setText("Launching root…");
+            launchSubtitle.setText("Running the exploit, please wait");
+            launchIcon.setVisibility(View.INVISIBLE);
+            launchProgress.setVisibility(View.VISIBLE);
+            launchProgress.setIndicatorColor(iconColor);
+            launchCard.setClickable(false);
+            launchCard.setFocusable(false);
+        } else if (active) {
+            cardColor = color(com.google.android.material.R.attr.colorPrimaryContainer);
+            titleColor = color(com.google.android.material.R.attr.colorOnPrimaryContainer);
+            subtitleColor = titleColor;
+            iconBackgroundColor = color(androidx.appcompat.R.attr.colorPrimary);
+            iconColor = color(com.google.android.material.R.attr.colorOnPrimary);
+            launchTitle.setText("Root active");
+            launchSubtitle.setText("Root access is ready - tap to open");
+            launchIcon.setImageResource(R.drawable.ic_check);
+            launchIcon.setVisibility(View.VISIBLE);
+            launchProgress.setVisibility(View.GONE);
+            launchCard.setClickable(true);
+            launchCard.setFocusable(true);
+        } else {
+            cardColor = color(com.google.android.material.R.attr.colorSurfaceContainerHighest);
+            titleColor = color(com.google.android.material.R.attr.colorOnSurface);
+            subtitleColor = color(com.google.android.material.R.attr.colorOnSurfaceVariant);
+            iconBackgroundColor = color(com.google.android.material.R.attr.colorPrimaryContainer);
+            iconColor = color(com.google.android.material.R.attr.colorOnPrimaryContainer);
+            launchTitle.setText("Launch Root");
+            launchSubtitle.setText(mSelectedSuManagerPackage == null
+                    ? "Select an SU Manager to launch"
+                    : "Tap to run the exploit");
+            launchIcon.setImageResource(R.drawable.ic_power);
+            launchIcon.setVisibility(View.VISIBLE);
+            launchProgress.setVisibility(View.GONE);
+            launchCard.setClickable(true);
+            launchCard.setFocusable(true);
+        }
+
+        launchCard.setCardBackgroundColor(cardColor);
+        launchTitle.setTextColor(titleColor);
+        launchSubtitle.setTextColor(subtitleColor);
+        launchIconContainer.setBackgroundTintList(ColorStateList.valueOf(iconBackgroundColor));
+        launchIcon.setImageTintList(ColorStateList.valueOf(iconColor));
     }
 
     private boolean isRootActive() {
@@ -355,6 +427,7 @@ public class MainActivity extends Activity implements IReporter {
         isLaunching = true;
         updateRunButton();
         outputView.setText("");
+        logEmpty.setVisibility(View.GONE);
         mExec.execute(this::runExploit);
     }
 
@@ -372,25 +445,20 @@ public class MainActivity extends Activity implements IReporter {
         } finally {
             mMain.post(() -> {
                 isLaunching = false;
-                setLaunchRootSwitchChecked(isRootActive());
                 updateRunButton();
             });
         }
     }
 
-    private void setLaunchRootSwitchChecked(boolean checked) {
-        switchLaunchRoot.setOnCheckedChangeListener(null);
-        switchLaunchRoot.setChecked(checked);
-        switchLaunchRoot.setOnCheckedChangeListener(launchRootSwitchListener);
-    }
-
     private static class SuManagerEntry {
         final String packageName;
         final CharSequence label;
+        final Drawable icon;
 
-        SuManagerEntry(String pkg, CharSequence label) {
+        SuManagerEntry(String pkg, CharSequence label, Drawable icon) {
             this.packageName = pkg;
             this.label = label;
+            this.icon = icon;
         }
     }
 }

@@ -42,6 +42,7 @@ jobs:
           
           BUILD_TOOLS=$(find $ANDROID_HOME/build-tools -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
           RAW_APK=$(find app/build/outputs/apk -name "*.apk" | head -n 1)
+          VERSION_NAME=$(sed -nE 's/^[[:space:]]*versionName[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' app/build.gradle.kts | head -n 1)
           
           "$BUILD_TOOLS/zipalign" -p -f 4 "$RAW_APK" aligned.apk
           "$BUILD_TOOLS/apksigner" sign \
@@ -52,12 +53,12 @@ jobs:
             --v1-signing-enabled true \
             --v2-signing-enabled true \
             --v3-signing-enabled true \
-            --out Dslice_6.1_Signed.apk \
+            --out "Dslice_${VERSION_NAME}_Signed.apk" \
             aligned.apk
 
       - name: 7. Upload Signed APK
         uses: actions/upload-artifact@v4
         with:
           name: Dslice_Signed_APK
-          path: Dslice_6.1_Signed.apk
+          path: Dslice_*_Signed.apk
           if-no-files-found: error

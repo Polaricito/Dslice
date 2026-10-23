@@ -6,6 +6,8 @@
         <item name="android:windowBackground">#121212</item>
         <item name="android:windowSplashScreenBackground">#121212</item>
         <item name="android:statusBarColor">@color/top_bar_background</item>
+        <item name="android:navigationBarColor">@color/top_bar_background</item>
+        <item name="android:windowLightNavigationBar">false</item>
         <item name="android:colorBackground">@color/app_background</item>
         <item name="android:colorPrimary">@color/top_bar_background</item>
         <item name="android:colorPrimaryDark">@color/top_bar_background</item>

@@ -5,6 +5,8 @@
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowBackground">@color/app_background</item>
         <item name="android:statusBarColor">@color/top_bar_background</item>
+        <item name="android:navigationBarColor">@color/top_bar_background</item>
+        <item name="android:windowLightNavigationBar">true</item>
         <item name="android:colorBackground">@color/app_background</item>
         <item name="android:colorPrimary">@color/top_bar_background</item>
         <item name="android:colorPrimaryDark">@color/top_bar_background</item>
