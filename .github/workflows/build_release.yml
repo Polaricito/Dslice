@@ -35,30 +35,15 @@ jobs:
           chmod +x gradlew
           ./gradlew clean assembleRelease --no-daemon
 
-      - name: 6. Sign APK with apksigner (v1, v2, v3)
+      - name: 6. Verify Gradle-signed APK
         run: |
-          keytool -genkeypair -v -keystore release.jks -alias dslice -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass dslice123 -keypass dslice123 -dname "CN=Dslice, OU=Dev, O=App, C=US"
-          
-          BUILD_TOOLS=$(find $ANDROID_HOME/build-tools -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
-          RAW_APK=$(find app/build/outputs/apk -name "*.apk" | head -n 1)
-          VERSION_NAME=$(sed -nE 's/^[[:space:]]*versionName[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' app/build.gradle.kts | head -n 1)
-          
-          "$BUILD_TOOLS/zipalign" -p -f 4 "$RAW_APK" aligned.apk
-          "$BUILD_TOOLS/apksigner" sign \
-            --ks release.jks \
-            --ks-key-alias dslice \
-            --ks-pass pass:dslice123 \
-            --key-pass pass:dslice123 \
-            --v1-signing-enabled true \
-            --v2-signing-enabled true \
-            --v3-signing-enabled true \
-            --out "Dslice_${VERSION_NAME}_Signed.apk" \
-            aligned.apk
+          BUILD_TOOLS=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
+          APK=$(find app/build/outputs/apk/release -name "Dslice_*.apk" | head -n 1)
+          "$BUILD_TOOLS/apksigner" verify --print-certs "$APK"
 
       - name: 7. Upload Signed APK
         uses: actions/upload-artifact@v4
         with:
           name: Dslice_Signed_APK
-          path: Dslice_*_Signed.apk
+          path: app/build/outputs/apk/release/Dslice_*.apk
           if-no-files-found: error

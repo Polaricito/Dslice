@@ -70,10 +70,10 @@ jobs:
           elif [ -z "$KEYSTORE" ] && [ -z "$KEYSTORE_PASSWORD" ] && \
                [ -z "$KEY_ALIAS" ] && [ -z "$KEY_PASSWORD" ]; then
             echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Release signing secrets are not configured. A signed debug APK will be uploaded instead of an unsigned release APK."
-            echo "Release signing secrets are not configured. A signed debug APK is uploaded instead; unsigned release APKs cannot be installed." >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::Release signing secrets are not configured. The public CI signing key in ci/dslice-ci.jks will be used."
+            echo 'Release signing secrets are not configured. The public CI signing key in ci/dslice-ci.jks is used; it is not private and is not suitable for Play Store releases.' >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "::error::Configure all four signing secrets (KEYSTORE, KEYSTORE_PASSWORD, KEY_ALIAS, and KEY_PASSWORD), or remove all four to build an unsigned APK."
+            echo "::error::Configure all four signing secrets (KEYSTORE, KEYSTORE_PASSWORD, KEY_ALIAS, and KEY_PASSWORD), or remove all four to use the committed CI signing key."
             exit 1
           fi
 
@@ -105,14 +105,21 @@ jobs:
 
       - name: Build Dslice APK
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ] || [ "${{ steps.signing.outputs.configured }}" != "true" ]; then
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
             ./gradlew :app:assembleDebug
           else
             ./gradlew :app:assembleRelease
           fi
 
+      - name: Verify release APK signature
+        if: github.event_name != 'pull_request'
+        run: |
+          BUILD_TOOLS=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
+          APK=$(find app/build/outputs/apk/release -name "Dslice_*.apk" | head -n 1)
+          "$BUILD_TOOLS/apksigner" verify --print-certs "$APK"
+
       - name: Upload Dslice debug APK
-        if: github.event_name == 'pull_request' || steps.signing.outputs.configured != 'true'
+        if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v7
         with:
           name: Dslice-Debug-APK
@@ -120,7 +127,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload signed Dslice release APK
-        if: github.event_name != 'pull_request' && steps.signing.outputs.configured == 'true'
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
         with:
           name: Dslice-Release-APK
@@ -128,7 +135,7 @@ jobs:
           if-no-files-found: error
 
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/') && steps.signing.outputs.configured == 'true'
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
           files: app/build/outputs/apk/release/Dslice_*.apk
