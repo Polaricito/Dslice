@@ -33,10 +33,10 @@ import android.widget.Toast;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.color.DynamicColors;
 import com.google.android.material.color.MaterialColors;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.progressindicator.CircularProgressIndicator;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
@@ -67,6 +67,8 @@ public class MainActivity extends Activity implements IReporter {
     private String mSelectedSuManagerPackage;
     private SharedPreferences suManagerPrefs;
     private boolean isLaunching;
+    private boolean launchFailed;
+    private String launchError;
     private boolean isLoadingManagers;
     private PopupWindow suManagerPopup;
 
@@ -122,11 +124,23 @@ public class MainActivity extends Activity implements IReporter {
     }
 
     private void onLaunchCardClicked() {
+        if (isLaunching) return;
         if (isRootActive()) {
             openSelectedSuManager();
             return;
         }
-        if (isLaunching) return;
+        if (launchFailed || hasIncompleteAttempt()) {
+            if (hasIncompleteAttempt()) {
+                showRebootRequiredDialog();
+                return;
+            }
+            if (mSelectedSuManagerPackage == null) {
+                Toast.makeText(this, "Select an SU Manager first", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            launchRoot();
+            return;
+        }
         if (mSelectedSuManagerPackage == null) {
             Toast.makeText(this, "Select an SU Manager first", Toast.LENGTH_SHORT).show();
             return;
@@ -358,6 +372,7 @@ public class MainActivity extends Activity implements IReporter {
 
     private void updateLaunchCard() {
         boolean active = isRootActive();
+        boolean incomplete = hasIncompleteAttempt();
         int cardColor;
         int titleColor;
         int subtitleColor;
@@ -390,6 +405,25 @@ public class MainActivity extends Activity implements IReporter {
             launchProgress.setVisibility(View.GONE);
             launchCard.setClickable(true);
             launchCard.setFocusable(true);
+        } else if (launchFailed || incomplete) {
+            cardColor = color(com.google.android.material.R.attr.colorErrorContainer);
+            titleColor = color(com.google.android.material.R.attr.colorOnErrorContainer);
+            subtitleColor = titleColor;
+            iconBackgroundColor = color(android.R.attr.colorError);
+            iconColor = color(com.google.android.material.R.attr.colorOnError);
+            launchTitle.setText(incomplete ? "Root incomplete" : "Launch failed");
+            String message = launchError;
+            if (message == null) {
+                message = incomplete
+                        ? "Previous attempt did not finish. Reboot required."
+                        : "The exploit failed. Tap to retry.";
+            }
+            launchSubtitle.setText(message);
+            launchIcon.setImageResource(R.drawable.ic_error);
+            launchIcon.setVisibility(View.VISIBLE);
+            launchProgress.setVisibility(View.GONE);
+            launchCard.setClickable(true);
+            launchCard.setFocusable(true);
         } else {
             cardColor = color(com.google.android.material.R.attr.colorSurfaceContainerHighest);
             titleColor = color(com.google.android.material.R.attr.colorOnSurface);
@@ -415,7 +449,11 @@ public class MainActivity extends Activity implements IReporter {
     }
 
     private boolean isRootActive() {
-        return new File("/dev/df").exists();
+        return ExploitRunner.isRootActive();
+    }
+
+    private boolean hasIncompleteAttempt() {
+        return ExploitRunner.hasIncompleteAttempt();
     }
 
     private boolean isSuManagerLocked() {
@@ -424,6 +462,8 @@ public class MainActivity extends Activity implements IReporter {
 
     private void launchRoot() {
         if (isLaunching || isRootActive() || mSelectedSuManagerPackage == null) return;
+        launchFailed = false;
+        launchError = null;
         isLaunching = true;
         updateRunButton();
         outputView.setText("");
@@ -434,20 +474,71 @@ public class MainActivity extends Activity implements IReporter {
     private void runExploit() {
         try {
             int rc = ExploitRunner.run(mDeCtx, this);
-            String msg = rc == 0 ? "Dslice: SUCCESS"
-                       : rc == 1 ? "Dslice: Error - ksud nonzero exit"
-                       : rc == 2 ? "Dslice: Error - check logcat & dmesg"
-                       : "Dslice: Error - failed to patch files";
-            mMain.post(() -> Toast.makeText(this, msg, Toast.LENGTH_LONG).show());
+            if (rc == ExploitRunner.RESULT_OK) {
+                mMain.post(() -> {
+                    launchFailed = false;
+                    launchError = null;
+                    updateRunButton();
+                });
+                return;
+            }
+
+            String reason = describeFailure(rc);
+            reason += hasIncompleteAttempt()
+                    ? " Reboot required before retrying."
+                    : " Tap to retry.";
+            String finalReason = reason;
+            report("\nDslice: " + reason + "\n");
+            mMain.post(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                launchFailed = true;
+                launchError = finalReason;
+                updateRunButton();
+            });
         } catch (Exception e) {
             Log.e(TAG, "exploit exception", e);
             report("\nexception: " + e + "\n");
+            mMain.post(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                launchFailed = true;
+                launchError = "Unexpected error. Tap to retry.";
+                updateRunButton();
+            });
         } finally {
             mMain.post(() -> {
+                if (isFinishing() || isDestroyed()) return;
                 isLaunching = false;
                 updateRunButton();
             });
         }
+    }
+
+    private String describeFailure(int rc) {
+        switch (rc) {
+            case ExploitRunner.RESULT_KSUD_ERROR:
+                return "KernelSU failed to start.";
+            case ExploitRunner.RESULT_TIMEOUT:
+                return "Timed out while starting KernelSU.";
+            case ExploitRunner.RESULT_PATCH_FAILED:
+                return "Could not patch the required files.";
+            case ExploitRunner.RESULT_INCOMPLETE:
+                return "A previous attempt did not finish.";
+            case ExploitRunner.RESULT_NO_MANAGER:
+                return "Select an SU Manager first.";
+            case ExploitRunner.RESULT_MANAGER_UNAVAILABLE:
+                return "The selected SU Manager is unavailable.";
+            default:
+                return "The exploit failed (code " + rc + ").";
+        }
+    }
+
+    private void showRebootRequiredDialog() {
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Reboot required")
+                .setMessage("The previous attempt did not finish loading KernelSU. "
+                        + "Reboot the device to clear the partial hook before trying again.")
+                .setPositiveButton("OK", null)
+                .show();
     }
 
     private static class SuManagerEntry {
