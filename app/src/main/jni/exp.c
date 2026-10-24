@@ -357,6 +357,27 @@ static int patch_helper(void) {
     return 0;
 }
 
+static void print_ko_info(const struct KoImage *ko) {
+    struct utsname u;
+    if (uname(&u) == 0)
+        printf("kernel release: %s\n", u.release);
+
+    const char *needle = "vermagic=";
+    size_t needle_len = strlen(needle);
+    size_t len = (size_t)(ko->end - ko->start);
+    for (size_t i = 0; i + needle_len < len; i++) {
+        if (memcmp(ko->start + i, needle, needle_len) != 0) continue;
+        const char *s = ko->start + i + needle_len;
+        size_t max = len - i - needle_len;
+        size_t n = 0;
+        while (n < max && n < 200 && s[n] != '\0' && s[n] != '\n') n++;
+        if (n) printf("ko vermagic: %.*s\n", (int)n, s);
+        else printf("ko vermagic: (empty)\n");
+        return;
+    }
+    printf("ko vermagic: (not found)\n");
+}
+
 static int patch_ko(void) {
     int andr = 0, major = 0, minor = 0;
     if (read_device_versions(&andr, &major, &minor) != 0) {
@@ -368,6 +389,7 @@ static int patch_ko(void) {
     }
     printf("Using KMI: android%d-%d.%d\n",
              ko->android_release, ko->kver_major, ko->kver_minor);
+    print_ko_info(ko);
 
     size_t len;
     char *buf = pad16(ko->start, (size_t)(ko->end - ko->start), &len);

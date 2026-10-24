@@ -5,6 +5,8 @@ import df.D10slice.R;
 
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -83,6 +85,18 @@ public class MainActivity extends Activity implements IReporter {
         });
     }
 
+    private void copyLogToClipboard() {
+        CharSequence log = outputView.getText();
+        if (log.length() == 0) {
+            Toast.makeText(this, "Log is empty", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        if (clipboard == null) return;
+        clipboard.setPrimaryClip(ClipData.newPlainText("Dslice log", log));
+        Toast.makeText(this, "Log copied", Toast.LENGTH_SHORT).show();
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         DynamicColors.applyToActivityIfAvailable(this);
@@ -119,6 +133,7 @@ public class MainActivity extends Activity implements IReporter {
             openSuManagerPicker();
         });
         launchCard.setOnClickListener(v -> onLaunchCardClicked());
+        findViewById(R.id.copyLog).setOnClickListener(v -> copyLogToClipboard());
 
         updateRunButton();
     }
@@ -411,11 +426,16 @@ public class MainActivity extends Activity implements IReporter {
             subtitleColor = titleColor;
             iconBackgroundColor = color(android.R.attr.colorError);
             iconColor = color(com.google.android.material.R.attr.colorOnError);
-            launchTitle.setText(incomplete ? "Root incomplete" : "Launch failed");
+            String stage = incomplete ? ExploitRunner.failureStage() : "";
+            String title = incomplete ? "Root incomplete" : "Launch failed";
+            if (incomplete && ExploitRunner.STAGE_MODULE_FAILED.equals(stage)) {
+                title = "Module load failed";
+            }
+            launchTitle.setText(title);
             String message = launchError;
             if (message == null) {
                 message = incomplete
-                        ? "Previous attempt did not finish. Reboot required."
+                        ? stage + " Reboot required."
                         : "The exploit failed. Tap to retry.";
             }
             launchSubtitle.setText(message);
@@ -514,29 +534,31 @@ public class MainActivity extends Activity implements IReporter {
     }
 
     private String describeFailure(int rc) {
+        String stage = ExploitRunner.failureStage();
         switch (rc) {
             case ExploitRunner.RESULT_KSUD_ERROR:
-                return "KernelSU failed to start.";
             case ExploitRunner.RESULT_TIMEOUT:
-                return "Timed out while starting KernelSU.";
+            case ExploitRunner.RESULT_INCOMPLETE:
+                return "Root is active.".equals(stage) ? "The exploit timed out." : stage;
             case ExploitRunner.RESULT_PATCH_FAILED:
                 return "Could not patch the required files.";
-            case ExploitRunner.RESULT_INCOMPLETE:
-                return "A previous attempt did not finish.";
             case ExploitRunner.RESULT_NO_MANAGER:
                 return "Select an SU Manager first.";
             case ExploitRunner.RESULT_MANAGER_UNAVAILABLE:
                 return "The selected SU Manager is unavailable.";
             default:
-                return "The exploit failed (code " + rc + ").";
+                return "Root is active.".equals(stage)
+                        ? "The exploit failed (code " + rc + ")."
+                        : stage;
         }
     }
 
     private void showRebootRequiredDialog() {
+        String stage = ExploitRunner.failureStage();
+        String detail = "Root is active.".equals(stage) ? "" : stage + "\n\n";
         new MaterialAlertDialogBuilder(this)
                 .setTitle("Reboot required")
-                .setMessage("The previous attempt did not finish loading KernelSU. "
-                        + "Reboot the device to clear the partial hook before trying again.")
+                .setMessage(detail + "Reboot the device to clear the partial hook before trying again.")
                 .setPositiveButton("OK", null)
                 .show();
     }
